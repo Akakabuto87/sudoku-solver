@@ -1,0 +1,216 @@
+import numpy as np
+
+
+#                  TODO: remove all len(prog) and put in 9 because we never work with other sizes
+# https://www.conceptispuzzles.com/index.aspx?uri=puzzle/sudoku/techniques
+# check if one number is only one place in row/column/square
+def sudoku_reader(filename_as_string):
+    sudoku_text = open(filename_as_string, "r")
+    lines = sudoku_text.readlines()
+    sudoku = np.empty((9, 9), dtype=int)
+    for i in range(9):
+        for j in range(9):
+            sudoku[i, j] = lines[i][j]
+    return sudoku
+
+
+def print_s(array):
+    namestr = [name for name in globals() if globals()[name] is array]
+    print("\nArray variable name:   ", namestr[0])
+
+    for i in range(9):
+        if i % 3 == 0 and i != 0:
+            for j in range(9):
+                if j % 3 == 0 and j != 0:
+                    print("|", end=" ")
+                print("{:^12}".format("-------"), end=" ")
+                if j == 8:
+                    print(" ")
+        for j in range(9):
+            if j % 3 == 0 and j != 0:
+                print("|", end=" ")
+            print("{:^12}".format(str(array[i, j]).replace(" ", "").replace("0", " ")), end=" ")
+            if j == 8:
+                print(" ")
+
+
+def update_sudoku(row, col, val):
+    sw[row, :, val - 1] = np.zeros(9)
+    sw[:, col, val - 1] = np.zeros(9)
+    row3x3 = row // 3 * 3
+    col3x3 = col // 3 * 3
+    sw[row3x3:row3x3 + 3, col3x3:col3x3 + 3, val - 1] = np.zeros((3, 3))
+
+def only_one_option():
+    for i in range(9):
+        for j in range(9):
+            if np.count_nonzero(sw[i, j, :]) == 1:
+                val = np.sum(sw[i, j, :])
+                ss[i, j] = val
+                print("Updated sudoku with value: ", val, "  at row", i, "column", j)
+                update_sudoku(i, j, val)
+"""kan det gøres i en class?
+
+
+remove_options(self,options,solution): #remove from row/column/3x3
+    return options
+
+options_remove(self,options,row, column, value): #kaldes fra andre funktioner
+    return options
+
+print
+
+loop
+
+
+only_in_row(self, options, solution):
+    return options, solution
+
+only in column .....
+
+only_in_square .....
+
+only_one_option .....
+
+print
+
+    """
+
+sudoku = sudoku_reader("sudoku3.txt")
+ss = np.copy(sudoku)
+sw = np.zeros((9, 9, 9), dtype=int)
+
+for i in range(9):
+    for j in range(9):
+        if ss[i, j] == 0:
+            sw[i, j] = list(range(1, 10))
+
+# ------------------------------------ solver loop
+keep_going = True
+cycle = 0
+print("\n|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||\
+||||||||||||||||||||||||||||||||||||||||||\n Let's see the puzzle..:")
+
+print_s(ss)
+print_s(sw)
+
+while keep_going:
+    cycle += 1
+    print(" \n \n \n \n|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||\
+||||||||||||||||||||||||||||||||||||||||||\n \nRun Number. ", cycle)
+    # find initial solved spaces and remove that option from connected spaces
+    for i in range(9):
+        for j in range(9):
+            if ss[i, j] != 0:
+                update_sudoku(i, j, ss[i, j])
+    print("after initial removal")
+    print_s(ss)
+    print_s(sw)
+    only_one_option()
+    print("after only one option")
+    print_s(ss)
+    print_s(sw)
+
+    # only_one_value()
+    for i in range(9):
+        for val in range(1,10):
+            if np.count_nonzero(sw[i,:,val-1]) == 1
+
+
+    # square_changes = square_check()
+    # row_col_changes = row_col_check()
+    # solution_progress = sol_update()
+    #
+    # print("Options removed squares:                  ", square_changes)
+    # print("Options removed from rows and columns:    ", row_col_changes)
+    # print("solutions filled out:                     ", solution_progress)
+    #
+    # print_s(ss)
+    # print_s(sw)
+
+    # if row_col_changes == 0 and solution_progress == 0:
+    #     keep_going = False
+    #     print("\nBuuuuuuuuhhh.. Cannot make progress.     \nNeed more features")
+    # elif 0 not in ss:
+    #     keep_going = False
+    #     print("\nYay. I think I have solved the puzzle!!!")
+    keep_going = False
+
+#
+#
+# def square_check():  # Take out the options that are in the solution 3x3 squares
+#     progress = 0
+#     for num in range(1, 10):
+#         for i in range(0, 9, 3):
+#             for j in range(0, 9, 3):
+#                 if num in sw[i:i + 3, j:j + 3, num - 1] and num in ss[i:i + 3, j:j + 3]:
+#                     sw[i:i + 3, j:j + 3, num - 1] = np.zeros((3, 3))
+#                     progress += 1
+#                     print("removed option   ", num, "   from a 3x3 square  ", i // 3 + 1, j // 3 + 1)
+#     return progress
+#
+#
+# def row_col_check():  # Take out the options that are in the solution row or column
+#     progress = 0
+#     for num in range(1, 9 + 1):
+#         for i in range(9):
+#             if num in sw[i, :, num - 1] and num in ss[i, :]:
+#                 sw[i, :, num - 1] = np.zeros(9)
+#                 progress += 1
+#                 print("removed option   ", num, "   from a row      ", i + 1)
+#             if num in sw[:, i, num - 1] and num in ss[:, i]:
+#                 sw[:, i, num - 1] = np.zeros(9)
+#                 progress += 1
+#                 print("removed option   ", num, "   from a column   ", i + 1)
+#     return progress
+#
+#
+# def sol_update():  # updates solution if prog only has one
+#     progress = 0
+#     #for all cells one at a time
+#     for i in range(9):
+#         for j in range(9):
+#             sum = np.sum(sw[i, j]) #sum of a cell
+#             #if sum of cell is equal to value, there must be only one option
+#             # if ss[i, j] == 0 and sum in sw[i, j] and sum != 0: #remake to count(0) == 8
+#             if ss[i, j] == 0 and np.count_nonzero(sw[i,j,:] == 0) == 8:
+#                 ss[i, j] = sum
+#                 print("updated a solution:", sum, "  at row", i + 1, "  column", j + 1,
+#                       "    Removed the value from rows/columns/square")
+#                 # sw[i, :, sum - 1] = np.zeros(9)
+#                 # sw[:, j, sum - 1] = np.zeros(9)
+#                 sw[i,j,:] = np.zeros(9)
+#                 #TODO: remove from square/column and row in a funktion update(i,j,num)
+#                 progress += 1
+#     for num in range(1, 10):
+#         for i in range(0, 9, 3):
+#             for j in range(0, 9, 3):
+#                 if np.count_nonzero(sw[i:i + 3, j:j + 3] == num) == 1:
+#                     [[i_s, j_s, _]] = list(np.argwhere(sw[i:i + 3, j:j + 3] == num))
+#                     ss[i + i_s, j + j_s] = num
+#                     print("updated a solution:", num, "  at row", i + i_s + 1, "  column", j + j_s + 1,
+#                           "    Removed the value from square")
+#                     # sw[i:i + 3, j:j + 3, num - 1] = np.zeros((3, 3))
+#                     sw[i + i_s, j + j_s, :] = np.zeros(9)
+#                     progress += 1
+#         for i in range(9):
+#             sum_row = np.sum(sw[i, :, num - 1])
+#             if sum_row == num:
+#                 [[i_r]] = np.argwhere(sw[i, :, num - 1] == num)
+#                 ss[i, i_r] = num
+#                 print("updated a solution:", num, "  at row", i, "  column", i_r, "    Removed the value from row")
+#                 # sw[i, :, num - 1] = np.zeros(9)
+#                 sw[i, i_r,:] = np.zeros(9)
+#                 progress += 1
+#             sum_col = np.sum(sw[:, i, num - 1])
+#             if sum_col == num:
+#                 [[i_r]] = np.argwhere(sw[:, i, num - 1] == num)
+#                 ss[i_r, i] = num
+#                 print("updated a solution:", num, "  at row", i_r, "  column", i, "    Removed the value from column")
+#                 # sw[:, i, num - 1] = np.zeros(9)
+#                 sw[i_r, i,:] = np.zeros(9)
+#                 progress += 1
+#     return progress
+#
+#
+# # ------------------------------------------------------------------------- lets go
