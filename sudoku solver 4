@@ -1,0 +1,270 @@
+import numpy as np
+
+# https://www.conceptispuzzles.com/index.aspx?uri=puzzle/sudoku/techniques
+
+def sudoku_reader(filename_as_string):
+    sudoku_text = open(filename_as_string, "r")
+    lines = sudoku_text.readlines()
+    sudoku = np.empty((9, 9), dtype=int)
+    for i in range(9):
+        for j in range(9):
+            sudoku[i, j] = lines[i][j]
+    return sudoku
+
+def test_for_errors(ss):
+    for val in range(1,10):
+        for i in range(9):
+            if np.count_nonzero(ss[i,:]==val) > 1:
+                print("row {} has more than one of a value {}".format(i+1, val))
+                return 1
+                
+            elif np.count_nonzero(ss[:,i]==val) > 1:
+                print("column {} has more than one of a value {}".format(i+1, val))
+                return 1
+        for i in range(0,9,3):
+            for j in range(0,9,3):
+                if np.count_nonzero(ss[i:i+3,j:j+3]==val) > 1:
+                    # error = True
+                    print("3x3 square has more than 1 of a value")
+                    return 1
+    return 0
+
+def print_s(array):
+    # namestr = [name for name in globals() if globals()[name] is array]
+    # print("\nArray variable name:   ", namestr[0])
+
+    for i in range(9):
+        if i % 3 == 0 and i != 0:
+            for j in range(9):
+                if j % 3 == 0 and j != 0:
+                    print("|", end=" ")
+                print("{:^12}".format("-------"), end=" ")
+                if j == 8:
+                    print(" ")
+        for j in range(9):
+            if j % 3 == 0 and j != 0:
+                print("|", end=" ")
+            print("{:^12}".format(str(array[i, j]).replace(" ", "").replace("0", " ")), end=" ")
+            if j == 8:
+                print(" ")
+
+def print_m(solution, options):
+    # namestr = [name for name in globals() if globals()[name] is array]
+    # print("\nArray variable name:   ", namestr[0])
+
+    for i in range(9):
+        if i % 3 == 0 and i != 0:
+            for j in range(9):
+                if j % 3 == 0 and j != 0:
+                    print("|", end=" ")
+                print("{:^12}".format("-------"), end=" ")
+                if j == 8:
+                    print("\n")
+        for j in range(9):
+            if j % 3 == 0 and j != 0:
+                print("|", end=" ")
+            if solution[i,j] == 0:
+                print("{:^12}".format(str(options[i, j]).replace("0", " ").replace(" ", "")), end=" ")
+            else:
+                print("{:^12}".format(">  "+str(solution[i, j]).replace(" ", "").replace("0", " ")+"  <"), end=" ")
+            if j == 8:
+                print("\n")
+
+def update_options(row, col, val):
+    sw[row, :, val - 1] = np.zeros(9)
+    sw[:, col, val - 1] = np.zeros(9)
+    row3x3 = row // 3 * 3
+    col3x3 = col // 3 * 3
+    sw[row3x3:row3x3 + 3, col3x3:col3x3 + 3, val - 1] = np.zeros((3, 3))
+    sw[row,col,:] = np.zeros(9)
+
+def only_one_option():
+    changes = 0
+    for i in range(9):
+        for j in range(9):
+            if np.count_nonzero(sw[i, j, :]) == 1:
+                val = np.sum(sw[i, j, :])
+                ss[i, j] = val
+                print("Solved sudoku with value: ", val, "  at row", i+1, "column", j+1, "    only option in cell")
+                update_options(i, j, val)
+                changes += 1
+    return changes
+
+def only_place_left_in_row_or_col():
+    changes = 0
+    for i in range(9):
+        for val in range(1,10):
+            if np.count_nonzero(sw[i, :, val - 1] == val) == 1:
+                [[i_r]] = np.argwhere(sw[i, :, val - 1] == val)
+                ss[i, i_r] = val
+                print("Solved sudoku with value: ", val, "  at row", i+1, "column", i_r+1, "    only place left in row")
+                update_options(i, i_r, val)
+                changes += 1
+            if np.count_nonzero(sw[:, i, val - 1] == val) == 1:
+                [[i_r]] = np.argwhere(sw[:, i, val - 1] == val)
+                ss[i_r, i] = val
+                print("Solved sudoku with value: ", val, "  at row", i_r+1, "column", i+1, "    only place left in column")
+                update_options(i_r, i, val)
+                changes += 1
+    return changes
+
+def only_place_left_in_square():
+    changes = 0
+    for i in range(0,9,3):
+        for j in range(0,9,3):
+            for val in range(1,10):
+                if np.count_nonzero(sw[i:i+3, j:j+3, val - 1] == val) == 1:
+                    [[i_s, j_s]] = np.argwhere(sw[i:i+3, j:j+3, val - 1] == val)
+                    ss[i+i_s,j+j_s] = val
+                    print("Solved sudoku with value: ", val, "  at row", i+i_s+1, "column", j+j_s+1, "    only place left in square")
+                    update_options(i+i_s,j+j_s, val)
+                    changes += 1
+    return changes
+
+def narrow_down_options():
+    changes = 0
+    for val in range(1,10):
+        for i3 in range(0,9,3):
+            for i1 in range(3):
+                for j3 in range(0,9,3):
+                    for j1 in range(3):
+                        if val in sw[i3+i1,:,val-1] \
+                        and val in sw[i3+i1,j3:j3+3,val-1] \
+                        and np.count_nonzero(sw[i3+i1,j3:j3+3,val-1]) == np.count_nonzero(sw[i3:i3+3,j3:j3+3,val-1])\
+                        and np.count_nonzero(sw[i3+i1,j3:j3+3,val-1]) < np.count_nonzero(sw[i3+i1,:,val-1]):
+                            if changes == 0: print("\n ")
+                            changes += 1
+                            print("Options for value  ", val, "  in row  ", i3+i1+1, "  narrowed down to columns  ", j3+1, "through", j3+3)
+                            if j3 == 0:
+                                sw[i3+i1, j3+3:, val-1] = np.zeros(6)
+                            elif j3 == 3: 
+                                sw[i3+i1, :j3, val-1] = np.zeros(3)
+                                sw[i3+i1, j3+3:, val-1] = np.zeros(3)
+                            else:
+                                sw[i3+i1, :j3, val-1] = np.zeros(6)
+                        
+                        if val in sw[:,j3+j1,val-1] \
+                        and val in sw[i3:i3+3,j3+j1,val-1] \
+                        and np.count_nonzero(sw[i3:i3+3,j3+j1,val-1]) == np.count_nonzero(sw[i3:i3+3,j3:j3+3,val-1])\
+                        and np.count_nonzero(sw[i3:i3+3,j3+j1,val-1]) < np.count_nonzero(sw[:,j3+j1,val-1]):
+                            if changes == 0: print("\n ")
+                            changes += 1
+                            print("Options for value  ", val, "  in column  ", j3+j1+1, "  narrowed down to rows  ", i3+1, "through", i3+3)
+                            if i3 == 0:
+                                sw[i3+3:, j3+j1, val-1] = np.zeros(6)
+                            elif i3 == 3: 
+                                sw[:i3, j3+j1, val-1] = np.zeros(3)
+                                sw[i3+3:, j3+j1, val-1] = np.zeros(3)
+                            else:
+                                sw[:i3, j3+j1, val-1] = np.zeros(6)
+    return changes
+
+
+################################################################   MAIN 
+
+sudoku = sudoku_reader("many_sudokus.txt")
+ss = np.copy(sudoku)
+sw = np.zeros((9, 9, 9), dtype=int)
+
+for i in range(9):
+    for j in range(9):
+        if ss[i, j] == 0:
+            sw[i, j] = list(range(1, 10))
+
+################################################################ INIT
+keep_going = True
+error = 0
+test_try = 0
+test_cell = 0
+test_cell_max = 0
+cycle = 0
+print("\n|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||\
+||||||||||||||||||||||||||||||||||||||||||||||\nLet's see the puzzle..:")
+for i in range(9):
+    for j in range(9):
+        if ss[i, j] != 0:
+            update_options(i, j, ss[i, j])
+print("after initial removal")
+print_m(ss,sw)
+
+################################################################ LOOP
+
+while keep_going:
+    changes = 0
+    cycle += 1
+    print(" \n \n \n \n|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||\
+||||||||||||||||||||||||||||||||||||||||||||||\n \nRun Number. ", cycle)
+    # find initial solved spaces and remove that option from connected spaces
+    
+    
+    changes += only_one_option()
+    changes += only_place_left_in_row_or_col()
+    changes += only_place_left_in_square()
+    
+    if changes == 0:
+        print("Nothing could be solved. Let's see if we can remove some options")
+    
+    print_m(ss,sw)
+    
+    if changes == 0:
+        changes += narrow_down_options()
+    
+    if changes == 0 and test_try % 2 == 0:
+        test_try += 1
+        changes += 1
+        error = 0
+        found_cell = False
+        ss_backup = np.copy(ss)
+        sw_backup = np.copy(sw)
+        for i in range(9):
+            for j in range(9):
+                if np.count_nonzero(sw[i,j,:]) == 2:
+                    test_cell += 1
+                    if test_cell == test_cell_max:
+                        test_cell_max <= test_cell
+                        val_test=np.argmax(sw[i,j,:], axis=0)+1
+                        i_test = i 
+                        j_test = j 
+                        print("||||||||||||||||||||||||||||||||||||||||||||||||||||||||\
+    |||||||||||||||||||||||||||||||||||||||||||||||||||||||")
+                        print("TESTING: There are two options at row  ", i_test+1, "  column  ", j_test+1,"    we will test the value  ", val_test)
+                        print("||||||||||||||||||||||||||||||||||||||||||||||||||||||||\
+    |||||||||||||||||||||||||||||||||||||||||||||||||||||||")
+                        ss[i_test,j_test] = val_test
+                        update_options(i_test,j_test,val_test)
+                        print_m(ss,sw)
+                        found_cell = True
+                        break
+                    else:
+                        test_cell += 1
+                if found_cell: 
+                    break
+            if found_cell: 
+                break
+        
+
+    
+    if np.count_nonzero(sw) == 0 and 0 in ss:
+        error += 1
+    error += test_for_errors(ss)
+    
+    if error != 0:
+        ss = np.copy(ss_backup)
+        sw = np.copy(sw_backup)
+        sw[i_test,j_test,val_test-1] = 0
+        print("\n||||||||||||||||||||||||||||||||||||||||||||||||||||||||\
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||")
+        print("TESTING: My testing did not end well. Let's remove option  ", val_test, "  from row  ", i_test+1, "  column  ", j_test+1)
+        print("||||||||||||||||||||||||||||||||||||||||||||||||||||||||\
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||\n")
+        print_m(ss,sw)
+        
+
+  
+    if changes == 0:
+        keep_going = False
+        print("\nBuuuuuuuuhhh.. Cannot make progress.     \nNeed more brains")
+    if 0 not in ss:
+        keep_going = False
+        print("\nYay. I think I have solved the puzzle!!!")
+
